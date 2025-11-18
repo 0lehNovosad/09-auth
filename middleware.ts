@@ -1,65 +1,76 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { checkSession } from "./lib/api/serverApi";
-import { parse } from "cookie";
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { parse } from 'cookie';
+import { checkSession } from './lib/api/serverApi';
 
-const privateRoutes = ['/profile', '/notes'];
-const publicRoutes = ['/sign-in', '/sign-up'];
+const privateRoutes = ['/profile', '/notes/'];
+const authRoutes = ['/sign-in', '/sign-up'];
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("accessToken")?.value;
-  const refreshToken = cookieStore.get("refreshToken")?.value;
+  const cookiesStore = await cookies();
+  const accessToken = cookiesStore.get('accessToken')?.value;
+  const refreshToken = cookiesStore.get('refreshToken')?.value;
 
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
-  const isPrivateRoute = privateRoutes.some((route) => pathname.startsWith(route));
-  
+  const { pathname } = request.nextUrl;
+
+  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
+  const isPrivateRoute = privateRoutes.some(route =>
+    pathname.startsWith(route)
+  );
 
   if (!accessToken) {
     if (refreshToken) {
-
       const data = await checkSession();
       const setCookie = data.headers['set-cookie'];
-
       if (setCookie) {
-        const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
-        let response = NextResponse.next()
-        for (const cookieStr of cookieArray) {
-          const parsed = parse(cookieStr);
+        const cookiesArray = Array.isArray(setCookie) ? setCookie : [setCookie];
+
+        for (const cookie of cookiesArray) {
+          const parsed = parse(cookie);
           const options = {
             expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
             path: parsed.Path,
             maxAge: Number(parsed['Max-Age']),
           };
-          if (parsed.accessToken) response.cookies.set('accessToken', parsed.accessToken, options);
-          if (parsed.refreshToken) response.cookies.set('refreshToken', parsed.refreshToken, options);
+          if (parsed.accessToken) {
+            cookiesStore.set('accessToken', parsed.accessToken, options);
+          }
+          if (parsed.refreshToken) {
+            cookiesStore.set('refreshToken', parsed.refreshToken, options);
+          }
         }
-
-        if (isPublicRoute) {
-          response = NextResponse.redirect(new URL('/', request.url));
-          return response;
+        if (isAuthRoute) {
+          return NextResponse.redirect(new URL('/', request.url), {
+            headers: {
+              Cookie: cookiesStore.toString(),
+            },
+          });
         }
-
         if (isPrivateRoute) {
-          return response;
+          return NextResponse.next({
+            headers: {
+              Cookie: cookiesStore.toString(),
+            },
+          });
         }
       }
     }
-
-    if (isPublicRoute) {
+    if (isAuthRoute) {
       return NextResponse.next();
     }
-
     if (isPrivateRoute) {
       return NextResponse.redirect(new URL('/sign-in', request.url));
     }
   }
 
+  if (isAuthRoute) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+  if (isPrivateRoute) {
     return NextResponse.next();
+  }
 }
 
 export const config = {
   matcher: ['/profile/:path*', '/notes/:path*', '/sign-in', '/sign-up'],
 };
-

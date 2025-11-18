@@ -1,16 +1,19 @@
+// app/notes/error.tsx
+
 'use client';
 
 interface Props {
-  error: Error,
+  error: Error;
+  reset: () => void;
 }
 
-const Error  = ({error}: Props) => {
+const Error = ({ error, reset }: Props) => {
   return (
-    <div style={{ padding: "15px", textAlign: "center" }}>
-      <p>  There is an error. Please, try again. {error.message}</p>
-      </div>
+    <div>
+      <p>Could not fetch the list of notes. {error.message}</p>
+      <button onClick={reset}>Try again</button>
+    </div>
   );
-}
+};
 
 export default Error;
-

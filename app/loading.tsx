@@ -1,6 +1,7 @@
-export default function Loading() {
-    return (
-        <div style={{ padding: "15px", textAlign: "center" }}>
-            <p>Loading, please wait...</p>
-        </div>)
-}
+// app/loading.tsx
+
+const Loading = () => {
+  return <p>Loading, please wait...</p>;
+};
+
+export default Loading;

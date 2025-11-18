@@ -1,100 +1,98 @@
-"use client";
+'use client';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast, Toaster } from 'react-hot-toast';
+import { useState, useEffect } from 'react';
+import css from './EditProfilePage.module.css';
+import { useAuthStore } from '@/lib/store/authStore';
+import { getMe, updateMe, UpdateUserRequest } from '@/lib/api/clientApi';
+import Loading from './loading';
 
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { patchUser, getUser } from "@/lib/api/clientApi";
-import css from "./EditProfilePage.module.css";
-import { useAuthStore } from "@/lib/store/authStore";
-
-export default function EditProfile() {
+const EditProfile = () => {
+  const { isAuthenticated } = useAuthStore();
+  const setUser = useAuthStore(store => store.setUser);
+  const [username, setUsername] = useState('');
+  const [avatar, setAvatar] = useState('');
+  const [email, setEmail] = useState('');
+  const queryClient = useQueryClient();
   const router = useRouter();
 
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [userImage, setUserImage] = useState("");
-
-  const setUser = useAuthStore((state) => state.setUser);
   useEffect(() => {
-    async function fetchUser() {
-      try {
-        const userData = await getUser();
-        setUsername(userData.username);
-        setEmail(userData.email);
-        setUserImage(userData.avatar ?? "");
-      } catch (e) {
-        setError("Failed to load user data");
-      }
-    }
-    fetchUser();
+    getMe().then(user => {
+      setUsername(user.username ?? '');
+      setAvatar(user.avatar ?? '');
+      setEmail(user.email ?? '');
+    });
   }, []);
 
-  const handleSaveSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await patchUser({ username });
-       console.log('User data after edit:', result)
-      setUser(result);
-      router.push("/profile");
-    } catch (error) {
-      setError(String(error));
-    } finally {
-      setLoading(false);
-    }
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(e.target.value);
   };
 
-  const handleCancel = () => {
-    router.push("/profile");
+  const updatedUser = useMutation({
+    mutationFn: (payload: UpdateUserRequest) => updateMe(payload),
+    onSuccess: () => {
+      toast.success('Username updated!', { position: 'top-center' });
+      setUser({username, avatar, email});
+      queryClient.invalidateQueries({ queryKey: ['username'] });
+      router.push('/profile');
+    },
+  });
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    updatedUser.mutate({ username });
   };
+
+  const handleCancel = () => router.push('/profile');
 
   return (
     <main className={css.mainContent}>
+      <Toaster />
       <div className={css.profileCard}>
         <h1 className={css.formTitle}>Edit Profile</h1>
 
         <Image
-          src={userImage || "/profile-photo.png"}
+          src={avatar}
           alt="User Avatar"
           width={120}
           height={120}
           className={css.avatar}
         />
 
-        <form onSubmit={handleSaveSubmit} className={css.profileInfo}>
+        <form onSubmit={handleSave} className={css.profileInfo}>
           <div className={css.usernameWrapper}>
-            <label htmlFor="username">Username:</label>
+            <label htmlFor="username">Username: </label>
             <input
               id="username"
+              name="username"
               type="text"
-              className={css.input}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={handleInput}
+              className={css.input}
             />
           </div>
 
           <p>Email: {email}</p>
 
-          {error && <p style={{ color: "red" }}>{error}</p>}
-
           <div className={css.actions}>
-            <button type="submit" className={css.saveButton} disabled={loading}>
-              {loading ? "Saving..." : "Save"}
+            <button type="submit" className={css.saveButton}>
+              Save
             </button>
             <button
-              onClick={handleCancel}
               type="button"
+              onClick={handleCancel}
               className={css.cancelButton}
             >
               Cancel
             </button>
           </div>
         </form>
+        {updatedUser.isPending && <Loading />}
       </div>
     </main>
   );
-}
+};
+
+export default EditProfile;

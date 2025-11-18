@@ -1,40 +1,35 @@
+// components/AuthProvider/AuthProvider.tsx
 
 'use client';
 
-import { checkSession, getUser } from '@/lib/api/clientApi';
-import { useAuthStore } from '@/lib/store/authStore';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { checkSession, getMe } from '../../lib/api/clientApi';
+import { useAuthStore } from '../../lib/store/authStore';
 
-type Props = {
+type AuthProviderProps = {
   children: React.ReactNode;
 };
 
-export default function AuthProvider({ children }: Props){
-  const setUser = useAuthStore((state) => state.setUser);
-  const clearIsAuthenticated = useAuthStore((state) => state.clearIsAuthenticated);
-  const [isLoading, setLoading] = useState(true)
+const AuthProvider = ({ children }: AuthProviderProps) => {
+  const setUser = useAuthStore(state => state.setUser);
+  const clearIsAuthenticated = useAuthStore(
+    state => state.clearIsAuthenticated
+  );
 
   useEffect(() => {
     const fetchUser = async () => {
-    setLoading(true)
-    try {
       const isAuthenticated = await checkSession();
       if (isAuthenticated) {
-        const user = await getUser();
+        const user = await getMe();
         if (user) setUser(user);
       } else {
         clearIsAuthenticated();
       }
-    } catch (err) {
-      alert(`AuthProvider error:${err}`);
-      clearIsAuthenticated();
-    } finally {
-      setLoading(false)
-    }
     };
     fetchUser();
-
   }, [setUser, clearIsAuthenticated]);
 
-  return (isLoading ? <div>Loading...</div> : <>{children}</>)
+  return children;
 };
+
+export default AuthProvider;
