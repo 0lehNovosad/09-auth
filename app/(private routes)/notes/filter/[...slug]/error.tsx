@@ -1,10 +1,16 @@
 'use client';
 
-type ErrorProps = {
-  error: Error;
-  reset: () => void;
-};
-
-export default function Error({ error }: ErrorProps) {
-  return <p>Could not fetch note details. {error.message}</p>;
+interface Props {
+  error: Error,
 }
+
+const Error  = ({error}: Props) => {
+  return (
+    <div style={{ padding: "15px", textAlign: "center" }}>
+      <p>  There is an error. Please, try again. {error.message}</p>
+      </div>
+  );
+}
+
+export default Error;
+

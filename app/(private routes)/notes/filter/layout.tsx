@@ -1,5 +1,5 @@
-import React from "react";
-import css from "../filter/layout.module.css"
+import css from "./layout.module.css";
+
 
 type Props = {
   children: React.ReactNode;
@@ -8,9 +8,9 @@ type Props = {
 
 const NotesLayout = ({ children, sidebar }: Props) => {
   return (
-    <section className={css.wrapper}>
-      <aside className={css.aside}>{sidebar}</aside>
-      <div className={css.content}> {children}</div>
+    <section className={css.container}>
+      <aside className={css.sidebar}>{sidebar}</aside>
+      <div className={css.notesWrapper}>{children}</div>
     </section>
   );
 };

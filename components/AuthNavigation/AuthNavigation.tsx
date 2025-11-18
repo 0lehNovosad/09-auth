@@ -13,19 +13,14 @@ export const metadata: Metadata = {
 
 export default function AuthNavigation() {
   const router = useRouter();
-  // Отримуємо поточну сесію та юзера
   const { isAuthenticated, user } = useAuthStore();
-  // Отримуємо метод очищення глобального стану
   const clearIsAuthenticated = useAuthStore(
     (state) => state.clearIsAuthenticated
   );
 
   const handleLogout = async () => {
-    // Викликаємо logout
     await logout();
-    // Чистимо глобальний стан
-    clearIsAuthenticated(); // Zustand очистка
-    // Виконуємо навігацію на сторінку авторизації
+    clearIsAuthenticated(); 
     router.push("/sign-in");
   };
 

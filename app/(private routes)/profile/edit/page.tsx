@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { editUser, usersMe } from "@/lib/api/clientApi";
+import { patchUser, getUser } from "@/lib/api/clientApi";
 import css from "./EditProfilePage.module.css";
 import { useAuthStore } from "@/lib/store/authStore";
 
@@ -18,10 +18,9 @@ export default function EditProfile() {
 
   const setUser = useAuthStore((state) => state.setUser);
   useEffect(() => {
-    // при загрузке страницы получить текущие данные пользователя
     async function fetchUser() {
       try {
-        const userData = await usersMe();
+        const userData = await getUser();
         setUsername(userData.username);
         setEmail(userData.email);
         setUserImage(userData.avatar ?? "");
@@ -38,7 +37,7 @@ export default function EditProfile() {
     setError(null);
 
     try {
-      const result = await editUser({ username });
+      const result = await patchUser({ username });
        console.log('User data after edit:', result)
       setUser(result);
       router.push("/profile");

@@ -1,44 +1,43 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import Link from "next/link";
-import css from "@/components/TagsMenu/TagsMenu.module.css";
+import css from "./TagsMenu.module.css"
+import Link from "next/link"
+import { useState } from 'react';
 
-type Props = {
-  tags: string[];
-};
+export default function TagsMenu() {
+    const tags = ["Work", "Personal", "Todo", "Shopping", "Meeting"];
+    const [isOpen, setIsOpen] = useState(false);
+    const toggle = () => setIsOpen((prev) => !prev);
+    const close = () => setIsOpen(false);
 
-export default function TagsMenu({ tags }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
-  const toggle = () => setIsOpen(!isOpen);
-  
+    return (
+        <div className={css.menuContainer}>
+            <button className={css.menuButton} onClick={toggle}> Notes ▾ </button>
 
-  return (
-    <div className={css.menuContainer}>
-      <button onClick={toggle} className={css.menuButton}>
-        Notes ▾
-      </button>
-      {isOpen && (
-        <ul className={css.menuList}>
-          {/* список тегів */}
-          <li className={css.menuItem}>
-            <Link
-              href={`/notes/filter/All`}
-              onClick={toggle}
-              className={css.menuLink}
-            >
-              All
-            </Link>
-          </li>
-          {tags.map((tag) => (
-            <li key={tag} className={css.menuItem}>
-              <Link className={css.menuLink} href={`/notes/filter/${tag}`} onClick={toggle}>
-                {tag}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+            {isOpen && (
+                <ul className={css.menuList}>
+                    <li className={css.menuItem}>
+                        <Link
+                            href="/notes/filter/All"
+                            className={css.menuLink}
+                            onClick={close}
+                        >
+                        All notes
+                        </Link>
+                    </li>
+                    {tags.map((tag) => (
+                        <li key={tag} className={css.menuItem}>
+                            <Link
+                                href={`/notes/filter/${tag}`}
+                                className={css.menuLink}
+                                onClick={close}
+                            >
+                            {tag}
+                            </Link>
+                        </li>
+                        ))}
+                </ul>
+                )}
+        </div>
+    )
 }

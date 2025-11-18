@@ -1,157 +1,142 @@
-"use client";
+'use client';
 
+import css from "./NoteForm.module.css";
+import * as Yup from "yup";
+import { useRouter } from "next/navigation";
+import type { NoteTag } from "../../types/note";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createNote } from "../../lib/api/clientApi";
-import type { NewNoteData, NoteTag } from "../../types/note";
-import { tags } from "../../types/note";
-import { useId, useState } from "react";
-import * as Yup from "yup";
-import { useNoteDraftStore } from "../../lib/store/noteStore";
-import { ValidationError } from "yup";
-import { useRouter } from "next/navigation";
-import css from "./NoteForm.module.css";
+import { useNoteDraft } from "@/lib/store/noteStore";
 
-interface NoteFormProps {
-  onClose: () => void; // якщо все добре, хочемо функцию, яка закриваэ модалку
-}
-
-const NoteSchema = Yup.object({
+const validationSchema = Yup.object({
   title: Yup.string()
-    .min(3, "Too Short!")
-    .max(50, "Too Long!")
-    .required("Required field"),
-  content: Yup.string().max(500, "Too long"),
-  tag: Yup.string()
-    .oneOf(["Todo", "Work", "Personal", "Meeting", "Shopping"])
-    .required("Required field"),
+    .min(3, "Title must be at least 3 characters")
+    .max(50, "Title must be at most 50 characters")
+    .required("Title is required"),
+  content: Yup.string().max(500, "Content must be at most 500 characters"),
+  tag: Yup.mixed<NoteTag>()
+    .oneOf(
+      ["Todo", "Work", "Personal", "Meeting", "Shopping"],
+      "Invalid tag value",
+    )
+    .required("Tag is required"),
 });
 
-export default function NoteForm({ onClose }: NoteFormProps) {
-  const fieldId = useId();
+interface NewNotePayload {
+  title: string;
+  content: string;
+  tag: NoteTag;
+}
+
+// 👇 ДОДАЛИ ПРОПСИ
+interface NoteFormProps {
+  tags: NoteTag[];
+}
+
+export default function NoteForm({ tags }: NoteFormProps) {
+  const router = useRouter();
+  const onCancel = () => router.back();
   const queryClient = useQueryClient();
+  const { draft, setDraft, clearDraft } = useNoteDraft();
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // zustand
-  const { draft, setDraft, clearDraft } = useNoteDraftStore();
+  const createMutation = useMutation({
+    mutationFn: createNote,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      clearDraft();
+      onCancel();
+    },
+  });
 
   const handleChange = (
     event: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     setDraft({
       ...draft,
-      [event.target.name]: event?.target.value,
+      [event.target.name]: event.target.value,
     });
   };
 
-  const router = useRouter();
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: (noteData: NewNoteData) => createNote(noteData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["notes"],
-      });
-      clearDraft();
-      const tagToRedirect = draft.tag || "All";
-      router.push(`/notes/filter/${tagToRedirect}`);
-    },
-  });
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    // debugger;
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const note: NewNoteData = {
-      title: formData.get("title")?.toString() || "",
-      content: formData.get("content")?.toString() || "",
-      tag: formData.get("tag")?.toString() as NoteTag,
+  const onCreate = async (formData: FormData) => {
+    const noteData: NewNotePayload = {
+      title: formData.get("title") as string,
+      content: formData.get("content") as string,
+      tag: formData.get("tag") as NoteTag,
     };
 
     try {
-      const validatedData = await NoteSchema.validate(note, {
-        abortEarly: false,
-      });
-      mutate(validatedData as NewNoteData);
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        const formErrors: Record<string, string> = {};
-        err.inner.forEach((e) => {
-          if (e.path) formErrors[e.path] = e.message;
-        });
-        setErrors(formErrors);
+      await validationSchema.validate(noteData, { abortEarly: false });
+      await createMutation.mutateAsync(noteData);
+    } catch (validationError) {
+      if (validationError instanceof Yup.ValidationError) {
+        const errorMessages = validationError.inner.map(
+          (error) => error.message,
+        );
+        alert(`${errorMessages.join("\n")}`);
+      } else {
+        alert("Failed to create note. Please try again.");
       }
     }
   };
 
-  const handleCancel = () => {
-    router.back();
-  };
-
   return (
-    <>
-      <form onSubmit={handleSubmit} className={css.form}>
-        <div className={css.formGroup}>
-          <label htmlFor={`${fieldId}-title`}>Title</label>
-          <input
-            value={draft?.title || ""}
-            onChange={handleChange}
-            id={`${fieldId}-title`}
-            type="text"
-            name="title"
-            className={css.input}
-          />
-          {errors.title && <span className={css.error}>{errors.title}</span>}
-        </div>
+    <form className={css.form} action={onCreate}>
+      <div className={css.formGroup}>
+        <label htmlFor="title">Title</label>
+        <input
+          id="title"
+          type="text"
+          name="title"
+          className={css.input}
+          onChange={handleChange}
+          defaultValue={draft?.title}
+        />
+      </div>
 
-        <div className={css.formGroup}>
-          <label htmlFor={`${fieldId}-content`}>Content</label>
-          <textarea
-            value={draft?.content || ""}
-            onChange={handleChange}
-            id={`${fieldId}-content`}
-            name="content"
-            rows={8}
-            className={css.textarea}
-          ></textarea>
-          {errors.content && (
-            <span className={css.error}>{errors.content}</span>
-          )}
-        </div>
+      <div className={css.formGroup}>
+        <label htmlFor="content">Content</label>
+        <textarea
+          id="content"
+          name="content"
+          rows={8}
+          className={css.textarea}
+          onChange={handleChange}
+          defaultValue={draft?.content}
+        />
+      </div>
 
-        <div className={css.formGroup}>
-          <label htmlFor={`${fieldId}tag`}>Tag</label>
-          <select
-            value={draft?.tag}
-            onChange={handleChange}
-            id={`${fieldId}tag`}
-            name="tag"
-            className={css.select}
-          >
-            {tags.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
-          {errors.tag && <span className={css.error}>{errors.tag}</span>}
-        </div>
+      <div className={css.formGroup}>
+        <label htmlFor="tag">Tag</label>
+        <select
+          id="tag"
+          name="tag"
+          className={css.select}
+          onChange={handleChange}
+          defaultValue={draft?.tag}
+        >
+          {/* 👇 Використовуємо теги з бекенда */}
+          {tags.map((tag) => (
+            <option key={tag} value={tag}>
+              {tag}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        <div className={css.actions}>
-          <button
-            type="button"
-            className={css.cancelButton}
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          <button type="submit" className={css.submitButton} disabled={false}>
-            {isPending ? "Creating ..." : "Create note"}
-          </button>
-        </div>
-      </form>
-    </>
+      <div className={css.actions}>
+        <button
+          type="button"
+          className={css.cancelButton}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+        <button type="submit" className={css.submitButton}>
+          {createMutation.isPending ? "Creating..." : "Create note"}
+        </button>
+      </div>
+    </form>
   );
 }
